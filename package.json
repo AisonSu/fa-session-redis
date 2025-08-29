@@ -1,0 +1,69 @@
+{
+  "name": "fa-session-redis",
+  "version": "0.0.1",
+  "description": "Redis session store for farrow-auth with support for both redis and ioredis clients",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "author": "Aison",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "prepare": "npm run build",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest watch",
+    "commit": "cz"
+  },
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "keywords": [
+    "farrow",
+    "farrow-auth",
+    "session",
+    "redis",
+    "ioredis",
+    "authentication"
+  ],
+  "license": "MIT",
+  "packageManager": "pnpm@10.15.0+sha512.486ebc259d3e999a4e8691ce03b5cac4a71cbeca39372a9b762cb500cfdf0873e2cb16abe3d951b1ee2cf012503f027b98b6584e4df22524e0c7450d9ec7aa7b",
+  "dependencies": {
+    "farrow-auth": "^0.0.1",
+    "ulid": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/supertest": "^6.0.0",
+    "@vitest/coverage-v8": "^1.0.0",
+    "commitizen": "^4.3.1",
+    "cz-conventional-changelog": "^3.3.0",
+    "farrow-http": "^2.0.0",
+    "farrow-pipeline": "^2.0.0",
+    "farrow-schema": "^2.3.3",
+    "ioredis": "^5.7.0",
+    "redis": "^5.8.2",
+    "supertest": "^6.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
+  },
+  "peerDependencies": {
+    "ioredis": "^5.0.0",
+    "redis": "^4.0.0 || ^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "ioredis": {
+      "optional": true
+    },
+    "redis": {
+      "optional": true
+    }
+  }
+}
