@@ -1,4 +1,4 @@
-import { AuthStore,sessionMetaDataCtx } from 'farrow-auth';
+import { SessionStore,sessionMetaDataCtx } from 'farrow-auth-session';
 import { ulid } from 'ulid';
 
 
@@ -222,7 +222,7 @@ export interface RedisSessionStoreOptions<UserData> {
 export function createRedisSessionStore<UserData = any>(
     client: RedisLikeClient | NormalizedRedisClient,
     options: RedisSessionStoreOptions<UserData> = {}
-): AuthStore<UserData, string> {
+): SessionStore<UserData, string> {
     const normalizedClient = ('setex' in client && typeof client.setex === 'function')
         ? client as NormalizedRedisClient 
         : createNormalizedRedisClient(client as RedisLikeClient);
@@ -240,9 +240,7 @@ export function createRedisSessionStore<UserData = any>(
 
     const getKey = (sessionId: string) => `${config.prefix}:${sessionId}`;
 
-    const store: AuthStore<UserData, string> = {
-        autoCreateOnMissing: true,
-
+    const store: SessionStore<UserData, string> = {
         async get(sessionId: string): Promise<UserData | null | undefined> {
             if (!sessionId) {
                 return null;
@@ -396,4 +394,3 @@ export function createRedisSessionStore<UserData = any>(
     return store;
 }
 
-export { createRedisSessionStore as createRedisAuthStore };

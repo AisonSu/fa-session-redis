@@ -1,10 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { createContainer, runWithContainer } from 'farrow-pipeline';
-import { sessionMetaDataCtx, createAuthCtx } from 'farrow-auth';
+import { sessionMetaDataCtx, createSessionCtx } from 'farrow-auth-session';
 import { createTestRedisClients, cleanupTestData, closeClients, createMockUserData, wait } from './setup';
 import { createRedisSessionStore, createNormalizedRedisClient } from '../src';
-import type { AuthStore } from 'farrow-auth';
-
+import type { SessionStore } from 'farrow-auth-session';
 type UserData = {
     userId: string;
     username: string;
@@ -37,7 +36,7 @@ describe('fa-session-redis', () => {
      */
     describe('Redis Session Store', () => {
         describe('with ioredis client', () => {
-            let store: AuthStore<UserData, string>;
+            let store: SessionStore<UserData, string>;
 
             beforeEach(() => {
                 store = createRedisSessionStore<UserData>(ioredisClient, {
@@ -296,7 +295,7 @@ describe('fa-session-redis', () => {
      * Edge Cases and Error Handling
      */
     describe('Edge Cases', () => {
-        let store: AuthStore<UserData, string>;
+        let store: SessionStore<UserData, string>;
 
         beforeEach(() => {
             store = createRedisSessionStore<UserData>(ioredisClient, {
@@ -319,7 +318,7 @@ describe('fa-session-redis', () => {
                 expect(destroyResult).toBe(false);
                 
                 // Touch without session context
-                const touchResult = await store.touch();
+                const touchResult = await store.touch!();
                 expect(touchResult).toBe(false);
             }, container);
         });

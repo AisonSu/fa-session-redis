@@ -1,6 +1,6 @@
 # fa-session-redis
 
-用于 [farrow-auth](https://github.com/farrow-js/farrow/tree/master/packages/farrow-auth) 的 Redis 会话存储，同时支持 [redis](https://github.com/redis/node-redis) 和 [ioredis](https://github.com/luin/ioredis) 客户端。
+用于 [farrow-auth-session](https://github.com/AisonSu/farrow-auth-session) 的 Redis 会话存储，同时支持 [redis](https://github.com/redis/node-redis) 和 [ioredis](https://github.com/luin/ioredis) 客户端。
 
 [English Documentation](./README.md)
 
@@ -15,7 +15,7 @@
 ## 安装
 
 ```bash
-npm install fa-session-redis farrow-auth
+npm install fa-session-redis farrow-auth-session
 
 # 安装 Redis 客户端
 npm install redis
@@ -28,7 +28,7 @@ npm install ioredis
 ```typescript
 import { Http, Response } from 'farrow-http';
 import { ObjectType, String } from 'farrow-schema';
-import { createAuth, createAuthCtx, cookieSessionParser } from 'farrow-auth';
+import { createSession, createSessionCtx, cookieSessionParser } from 'farrow-auth-session';
 import { createRedisSessionStore } from 'fa-session-redis';
 import Redis from 'ioredis';
 
@@ -42,8 +42,8 @@ type UserData = {
   role?: string;
 };
 
-// 创建认证上下文
-const authUserDataCtx = createAuthCtx<UserData>({});
+// 创建会话上下文
+const sessionUserDataCtx = createSessionCtx<UserData>({});
 
 // 创建 Redis 会话存储
 const redisStore = createRedisSessionStore<UserData>(redis, {
@@ -52,12 +52,13 @@ const redisStore = createRedisSessionStore<UserData>(redis, {
   rolling: true, // 每次访问时重置过期时间
 });
 
-// 设置认证中间件
-const authMiddleware = createAuth({
-  authUserDataCtx,
-  authParser: cookieSessionParser(),
-  authStore: redisStore,
+// 设置会话中间件
+const sessionMiddleware = createSession({
+  sessionUserDataCtx,
+  sessionParser: cookieSessionParser(),
+  sessionStore: redisStore,
   autoSave: true,
+  autoCreateOnMissing: true,
 });
 
 // 定义请求 schema
@@ -68,14 +69,14 @@ class LoginRequest extends ObjectType {
 
 // 创建 HTTP 应用
 const app = Http();
-app.use(authMiddleware);
+app.use(sessionMiddleware);
 
 // 登录端点
 app.post('/login', { body: LoginRequest }).use(async (request) => {
   const { username, password } = request.body;
   
   // 你的认证逻辑
-  authUserDataCtx.set({
+  sessionUserDataCtx.set({
     userId: 'user-123',
     username: username,
   });
@@ -85,7 +86,7 @@ app.post('/login', { body: LoginRequest }).use(async (request) => {
 
 // 受保护的端点
 app.get('/profile').use(() => {
-  const userData = authUserDataCtx.get();
+  const userData = sessionUserDataCtx.get();
   
   if (!userData?.userId) {
     return Response.status(401).json({ error: 'Not authenticated' });
@@ -96,7 +97,7 @@ app.get('/profile').use(() => {
 
 // 登出端点
 app.post('/logout').use(async () => {
-  await authUserDataCtx.destroy();
+  await sessionUserDataCtx.destroy();
   return Response.json({ success: true });
 });
 
@@ -107,7 +108,7 @@ app.listen(3000);
 
 ### `createRedisSessionStore(client, options)`
 
-创建用于 farrow-auth 的 Redis 会话存储。
+创建用于 farrow-auth-session 的 Redis 会话存储。
 
 #### 参数
 
@@ -165,9 +166,9 @@ const redisStore = createRedisSessionStore(redis, {
 
 ### `createRedisSessionStore<UserData>(client, options)`
 
-创建实现了 farrow-auth 的 `AuthStore` 接口的 Redis 会话存储。
+创建实现了 farrow-auth-session 的 `SessionStore` 接口的 Redis 会话存储。
 
-**返回：** `AuthStore<UserData, string>`
+**返回：** `SessionStore<UserData, string>`
 
 ### `createNormalizedRedisClient(client)`
 
@@ -175,9 +176,6 @@ const redisStore = createRedisSessionStore(redis, {
 
 **返回：** `NormalizedRedisClient`
 
-### `createRedisAuthStore`
-
-`createRedisSessionStore` 的别名，用于向后兼容。
 
 ## 类型定义
 

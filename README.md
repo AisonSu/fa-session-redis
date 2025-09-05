@@ -1,6 +1,6 @@
 # fa-session-redis
 
-Redis session store for [farrow-auth](https://github.com/farrow-js/farrow/tree/master/packages/farrow-auth) with support for both [redis](https://github.com/redis/node-redis) and [ioredis](https://github.com/luin/ioredis) clients.
+Redis session store for [farrow-auth-session](https://github.com/AisonSu/farrow-auth-session) with support for both [redis](https://github.com/redis/node-redis) and [ioredis](https://github.com/luin/ioredis) clients.
 
 [中文文档](./README_CN.md)
 
@@ -15,7 +15,7 @@ Redis session store for [farrow-auth](https://github.com/farrow-js/farrow/tree/m
 ## Installation
 
 ```bash
-npm install fa-session-redis farrow-auth
+npm install fa-session-redis farrow-auth-session
 
 # Install one of the Redis clients
 npm install redis
@@ -28,7 +28,7 @@ npm install ioredis
 ```typescript
 import { Http, Response } from 'farrow-http';
 import { ObjectType, String } from 'farrow-schema';
-import { createAuth, createAuthCtx, cookieSessionParser } from 'farrow-auth';
+import { createSession, createSessionCtx, cookieSessionParser } from 'farrow-auth-session';
 import { createRedisSessionStore } from 'fa-session-redis';
 import Redis from 'ioredis';
 
@@ -42,8 +42,8 @@ type UserData = {
   role?: string;
 };
 
-// Create auth context
-const authUserDataCtx = createAuthCtx<UserData>({});
+// Create session context
+const sessionUserDataCtx = createSessionCtx<UserData>({});
 
 // Create Redis session store
 const redisStore = createRedisSessionStore<UserData>(redis, {
@@ -52,12 +52,13 @@ const redisStore = createRedisSessionStore<UserData>(redis, {
   rolling: true, // Reset expiration on each access
 });
 
-// Setup authentication middleware
-const authMiddleware = createAuth({
-  authUserDataCtx,
-  authParser: cookieSessionParser(),
-  authStore: redisStore,
+// Setup session middleware
+const sessionMiddleware = createSession({
+  sessionUserDataCtx,
+  sessionParser: cookieSessionParser(),
+  sessionStore: redisStore,
   autoSave: true,
+  autoCreateOnMissing: true,
 });
 
 // Define request schema
@@ -68,14 +69,14 @@ class LoginRequest extends ObjectType {
 
 // Create HTTP app
 const app = Http();
-app.use(authMiddleware);
+app.use(sessionMiddleware);
 
 // Login endpoint
 app.post('/login', { body: LoginRequest }).use(async (request) => {
   const { username, password } = request.body;
   
   // Your authentication logic here
-  authUserDataCtx.set({
+  sessionUserDataCtx.set({
     userId: 'user-123',
     username: username,
   });
@@ -85,7 +86,7 @@ app.post('/login', { body: LoginRequest }).use(async (request) => {
 
 // Protected endpoint
 app.get('/profile').use(() => {
-  const userData = authUserDataCtx.get();
+  const userData = sessionUserDataCtx.get();
   
   if (!userData?.userId) {
     return Response.status(401).json({ error: 'Not authenticated' });
@@ -96,7 +97,7 @@ app.get('/profile').use(() => {
 
 // Logout endpoint
 app.post('/logout').use(async () => {
-  await authUserDataCtx.destroy();
+  await sessionUserDataCtx.destroy();
   return Response.json({ success: true });
 });
 
@@ -107,7 +108,7 @@ app.listen(3000);
 
 ### `createRedisSessionStore(client, options)`
 
-Creates a Redis-backed session store for farrow-auth.
+Creates a Redis-backed session store for farrow-auth-session.
 
 #### Parameters
 
@@ -165,9 +166,9 @@ const redisStore = createRedisSessionStore(redis, {
 
 ### `createRedisSessionStore<UserData>(client, options)`
 
-Creates a Redis-backed session store implementing the `AuthStore` interface from farrow-auth.
+Creates a Redis-backed session store implementing the `SessionStore` interface from farrow-auth-session.
 
-**Returns:** `AuthStore<UserData, string>`
+**Returns:** `SessionStore<UserData, string>`
 
 ### `createNormalizedRedisClient(client)`
 
@@ -175,9 +176,6 @@ Creates a normalized Redis client that provides a consistent API regardless of t
 
 **Returns:** `NormalizedRedisClient`
 
-### `createRedisAuthStore`
-
-Alias for `createRedisSessionStore` for backward compatibility.
 
 ## Type Definitions
 
