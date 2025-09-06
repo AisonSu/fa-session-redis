@@ -5,11 +5,10 @@ Redis session store for [farrow-auth-session](https://github.com/AisonSu/farrow-
 [中文文档](./README_CN.md)
 
 ## Features
-
-- 🔄 **Universal Redis Support** - Works with both `redis` and `ioredis` clients through a normalized adapter
-- 🎯 **Type-Safe** - Full TypeScript support with complete type inference
+- 🔄 **Universal Redis Support** - Works with both `redis` and `ioredis` clients through function overloads and normalized adapter
+- 🎯 **Type-Safe** - Full TypeScript support with function overloads for compile-time type checking
 - ⚡ **Performance** - Efficient session management with configurable TTL strategies
-- 🔒 **Secure** - Server-side session storage
+- 🔒 **Secure** - Server-side session storage with ULID-based session IDs
 - 🎨 **Flexible** - Multiple session expiration strategies (rolling, renewing, fixed)
 
 ## Installation
@@ -104,16 +103,91 @@ app.post('/logout').use(async () => {
 app.listen(3000);
 ```
 
+## Redis Client Examples
+
+The function overloads provide compile-time type safety for different Redis clients:
+
+### With ioredis
+
+```typescript
+import Redis from 'ioredis';
+import { createRedisSessionStore } from 'fa-session-redis';
+
+const redis = new Redis({
+  host: 'localhost',
+  port: 6379,
+  db: 0,
+});
+
+// TypeScript automatically infers the correct overload
+const store = createRedisSessionStore(redis, {
+  prefix: 'app-session',
+  ttl: 3600,
+});
+```
+
+### With node-redis
+
+```typescript
+import { createClient } from 'redis';
+import { createRedisSessionStore } from 'fa-session-redis';
+
+const redis = createClient({
+  url: 'redis://localhost:6379'
+});
+
+await redis.connect();
+
+// TypeScript automatically infers the correct overload
+const store = createRedisSessionStore(redis, {
+  prefix: 'app-session',
+  ttl: 3600,
+});
+```
+
+### Type Safety
+
+```typescript
+// ✅ This works - valid Redis client
+const validStore = createRedisSessionStore(redisClient, options);
+
+// ❌ This fails at compile time - not a Redis client
+const invalidStore = createRedisSessionStore({}, options);
+// Error: Argument of type '{}' is not assignable to parameter of type 'IoRedisLike | NodeRedisLike | RedisLikeClient'
+```
+
 ## Configuration Options
 
 ### `createRedisSessionStore(client, options)`
 
-Creates a Redis-backed session store for farrow-auth-session.
+Creates a Redis-backed session store for farrow-auth-session. This function uses TypeScript function overloads to provide compile-time type safety for different Redis client types.
+
+#### Function Overloads
+
+```typescript
+// For ioredis clients
+function createRedisSessionStore<UserData>(
+  client: IoRedisLike,
+  options?: RedisSessionStoreOptions<UserData>
+): SessionStore<UserData, string>;
+
+// For node-redis clients  
+function createRedisSessionStore<UserData>(
+  client: NodeRedisLike,
+  options?: RedisSessionStoreOptions<UserData>
+): SessionStore<UserData, string>;
+
+// For generic Redis clients
+function createRedisSessionStore<UserData>(
+  client: RedisLikeClient,
+  options?: RedisSessionStoreOptions<UserData>
+): SessionStore<UserData, string>;
+```
 
 #### Parameters
 
-- `client` - Redis client instance (from `redis` or `ioredis` package) or a normalized Redis client
-- `options` - Configuration options
+- `client` - Redis client instance (from `redis`, `ioredis`, or compatible package)
+- `options` - Configuration options (optional)
 
 #### Options
 
@@ -180,6 +254,7 @@ Creates a normalized Redis client that provides a consistent API regardless of t
 ## Type Definitions
 
 ```typescript
+// Configuration options for Redis session store
 interface RedisSessionStoreOptions<UserData> {
   prefix?: string;
   ttl?: number | false;
@@ -190,6 +265,43 @@ interface RedisSessionStoreOptions<UserData> {
   defaultData?: () => UserData;
 }
 
+// Interface for ioredis-like clients
+interface IoRedisLike {
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string): Promise<string>;
+  setex(key: string, seconds: number, value: string): Promise<string>;
+  del(...keys: string[]): Promise<number>;
+  expire(key: string, seconds: number): Promise<number>;
+  ttl(key: string): Promise<number>;
+  mget(...keys: string[]): Promise<(string | null)[]>;
+  scan(cursor: number | string, ...args: any[]): Promise<[string, string[]]>;
+}
+
+// Interface for node-redis-like clients
+interface NodeRedisLike {
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string): Promise<string>;
+  setEx(key: string, seconds: number, value: string): Promise<string>;
+  del(keyOrKeys: string | string[]): Promise<number>;
+  expire(key: string, seconds: number): Promise<boolean>;
+  ttl(key: string): Promise<number>;
+  mGet(keys: string[]): Promise<(string | null)[]>;
+  scanIterator(options: { MATCH?: string; COUNT?: number }): AsyncIterable<string>;
+}
+
+// Generic Redis client interface (fallback)
+interface RedisLikeClient {
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string): Promise<string | 'OK' | null>;
+  del(key: string | string[]): Promise<number>;
+  expire(key: string, seconds: number): Promise<number | boolean>;
+  mGet?(keys: string[]): Promise<(string | null)[]>;
+  mget?(keys: string[]): Promise<(string | null)[]>;
+  scan?(cursor: number | string, ...args: any[]): Promise<[string, string[]]>;
+  scanIterator?(options: { MATCH?: string; COUNT?: number }): AsyncIterable<string>;
+}
+
+// Internal normalized client interface
 interface NormalizedRedisClient {
   get(key: string): Promise<string | null>;
   set(key: string, value: string): Promise<boolean>;

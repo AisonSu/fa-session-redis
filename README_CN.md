@@ -6,10 +6,10 @@
 
 ## 特性
 
-- 🔄 **通用 Redis 支持** - 通过标准化适配器同时兼容 `redis` 和 `ioredis` 客户端
-- 🎯 **类型安全** - 完整的 TypeScript 支持和类型推导
+- 🔄 **通用 Redis 支持** - 通过函数重载和标准化适配器同时兼容 `redis` 和 `ioredis` 客户端
+- 🎯 **类型安全** - 完整的 TypeScript 支持，使用函数重载进行编译时类型检查
 - ⚡ **高性能** - 高效的会话管理，支持可配置的 TTL 策略
-- 🔒 **安全** - 服务端会话存储
+- 🔒 **安全** - 服务端会话存储，使用 ULID 生成会话 ID
 - 🎨 **灵活** - 多种会话过期策略（滚动、续期、固定）
 
 ## 安装
@@ -104,16 +104,91 @@ app.post('/logout').use(async () => {
 app.listen(3000);
 ```
 
+## Redis 客户端示例
+
+函数重载为不同的 Redis 客户端提供编译时类型安全：
+
+### 使用 ioredis
+
+```typescript
+import Redis from 'ioredis';
+import { createRedisSessionStore } from 'fa-session-redis';
+
+const redis = new Redis({
+  host: 'localhost',
+  port: 6379,
+  db: 0,
+});
+
+// TypeScript 自动推断正确的重载
+const store = createRedisSessionStore(redis, {
+  prefix: 'app-session',
+  ttl: 3600,
+});
+```
+
+### 使用 node-redis
+
+```typescript
+import { createClient } from 'redis';
+import { createRedisSessionStore } from 'fa-session-redis';
+
+const redis = createClient({
+  url: 'redis://localhost:6379'
+});
+
+await redis.connect();
+
+// TypeScript 自动推断正确的重载
+const store = createRedisSessionStore(redis, {
+  prefix: 'app-session',
+  ttl: 3600,
+});
+```
+
+### 类型安全
+
+```typescript
+// ✅ 正确 - 有效的 Redis 客户端
+const validStore = createRedisSessionStore(redisClient, options);
+
+// ❌ 编译时报错 - 不是 Redis 客户端
+const invalidStore = createRedisSessionStore({}, options);
+// 错误：类型"{}"的参数不能赋给类型"IoRedisLike | NodeRedisLike | RedisLikeClient"的参数
+```
+
 ## 配置选项
 
 ### `createRedisSessionStore(client, options)`
 
-创建用于 farrow-auth-session 的 Redis 会话存储。
+创建用于 farrow-auth-session 的 Redis 会话存储。此函数使用 TypeScript 函数重载为不同的 Redis 客户端类型提供编译时类型安全。
+
+#### 函数重载
+
+```typescript
+// 适用于 ioredis 客户端
+function createRedisSessionStore<UserData>(
+  client: IoRedisLike,
+  options?: RedisSessionStoreOptions<UserData>
+): SessionStore<UserData, string>;
+
+// 适用于 node-redis 客户端
+function createRedisSessionStore<UserData>(
+  client: NodeRedisLike,
+  options?: RedisSessionStoreOptions<UserData>
+): SessionStore<UserData, string>;
+
+// 适用于通用 Redis 客户端
+function createRedisSessionStore<UserData>(
+  client: RedisLikeClient,
+  options?: RedisSessionStoreOptions<UserData>
+): SessionStore<UserData, string>;
+```
 
 #### 参数
 
-- `client` - Redis 客户端实例（来自 `redis` 或 `ioredis` 包）或标准化的 Redis 客户端
-- `options` - 配置选项
+- `client` - Redis 客户端实例（来自 `redis`、`ioredis` 或兼容的包）
+- `options` - 配置选项（可选）
 
 #### 选项
 
@@ -180,6 +255,7 @@ const redisStore = createRedisSessionStore(redis, {
 ## 类型定义
 
 ```typescript
+// Redis 会话存储配置选项
 interface RedisSessionStoreOptions<UserData> {
   prefix?: string;
   ttl?: number | false;
@@ -190,6 +266,43 @@ interface RedisSessionStoreOptions<UserData> {
   defaultData?: () => UserData;
 }
 
+// ioredis 类客户端接口
+interface IoRedisLike {
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string): Promise<string>;
+  setex(key: string, seconds: number, value: string): Promise<string>;
+  del(...keys: string[]): Promise<number>;
+  expire(key: string, seconds: number): Promise<number>;
+  ttl(key: string): Promise<number>;
+  mget(...keys: string[]): Promise<(string | null)[]>;
+  scan(cursor: number | string, ...args: any[]): Promise<[string, string[]]>;
+}
+
+// node-redis 类客户端接口
+interface NodeRedisLike {
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string): Promise<string>;
+  setEx(key: string, seconds: number, value: string): Promise<string>;
+  del(keyOrKeys: string | string[]): Promise<number>;
+  expire(key: string, seconds: number): Promise<boolean>;
+  ttl(key: string): Promise<number>;
+  mGet(keys: string[]): Promise<(string | null)[]>;
+  scanIterator(options: { MATCH?: string; COUNT?: number }): AsyncIterable<string>;
+}
+
+// 通用 Redis 客户端接口（回退）
+interface RedisLikeClient {
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string): Promise<string | 'OK' | null>;
+  del(key: string | string[]): Promise<number>;
+  expire(key: string, seconds: number): Promise<number | boolean>;
+  mGet?(keys: string[]): Promise<(string | null)[]>;
+  mget?(keys: string[]): Promise<(string | null)[]>;
+  scan?(cursor: number | string, ...args: any[]): Promise<[string, string[]]>;
+  scanIterator?(options: { MATCH?: string; COUNT?: number }): AsyncIterable<string>;
+}
+
+// 内部标准化客户端接口
 interface NormalizedRedisClient {
   get(key: string): Promise<string | null>;
   set(key: string, value: string): Promise<boolean>;

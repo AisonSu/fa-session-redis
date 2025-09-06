@@ -1,13 +1,13 @@
 {
   "name": "fa-session-redis",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Redis session store for farrow-auth-session with support for both redis and ioredis clients",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "author": "Aison",
   "scripts": {
     "build": "tsc",
-    "clean": "rm -rf dist",
+    "clean": "rimraf dist",
     "prepare": "npm run build",
     "test": "vitest",
     "test:run": "vitest run",

@@ -1,5 +1,28 @@
-import { SessionStore,sessionMetaDataCtx } from 'farrow-auth-session';
+import { SessionStore, sessionMetaDataCtx } from 'farrow-auth-session';
 import { ulid } from 'ulid';
+
+// 为常用Redis客户端提供类型支持
+export interface IoRedisLike {
+    get(key: string): Promise<string | null>;
+    set(key: string, value: string): Promise<string>;
+    setex(key: string, seconds: number, value: string): Promise<string>;
+    del(...keys: string[]): Promise<number>;
+    expire(key: string, seconds: number): Promise<number>;
+    ttl(key: string): Promise<number>;
+    mget(...keys: string[]): Promise<(string | null)[]>;
+    scan(cursor: number | string, ...args: any[]): Promise<[string, string[]]>;
+}
+
+export interface NodeRedisLike {
+    get(key: string): Promise<string | null>;
+    set(key: string, value: string): Promise<string>;
+    setEx(key: string, seconds: number, value: string): Promise<string>;
+    del(keyOrKeys: string | string[]): Promise<number>;
+    expire(key: string, seconds: number): Promise<boolean>;
+    ttl(key: string): Promise<number>;
+    mGet(keys: string[]): Promise<(string | null)[]>;
+    scanIterator(options: { MATCH?: string; COUNT?: number }): AsyncIterable<string>;
+}
 
 
 export interface RedisLikeClient {
@@ -219,13 +242,55 @@ export interface RedisSessionStoreOptions<UserData> {
     defaultData?: () => UserData;
 }
 
+// 类型守卫函数
+function isNormalizedRedisClient(client: any): client is NormalizedRedisClient {
+    return (
+        'setex' in client && 
+        'ttl' in client && 
+        'mget' in client &&
+        typeof client.setex === 'function' &&
+        typeof client.ttl === 'function' &&
+        typeof client.mget === 'function'
+    );
+}
+
+// 函数重载：为不同的Redis客户端提供类型安全的重载
 export function createRedisSessionStore<UserData = any>(
-    client: RedisLikeClient | NormalizedRedisClient,
+    client: IoRedisLike,
+    options?: RedisSessionStoreOptions<UserData>
+): SessionStore<UserData, string>;
+
+export function createRedisSessionStore<UserData = any>(
+    client: NodeRedisLike,
+    options?: RedisSessionStoreOptions<UserData>
+): SessionStore<UserData, string>;
+
+export function createRedisSessionStore<UserData = any>(
+    client: RedisLikeClient,
+    options?: RedisSessionStoreOptions<UserData>
+): SessionStore<UserData, string>;
+
+// 实现函数
+export function createRedisSessionStore<UserData = any>(
+    client: any, // 接受any类型，在内部进行类型检查和转换
     options: RedisSessionStoreOptions<UserData> = {}
 ): SessionStore<UserData, string> {
-    const normalizedClient = ('setex' in client && typeof client.setex === 'function')
-        ? client as NormalizedRedisClient 
-        : createNormalizedRedisClient(client as RedisLikeClient);
+    // 验证客户端是否具备基本的Redis接口
+    if (!client || typeof client !== 'object') {
+        throw new Error('Redis client is required');
+    }
+    
+    const requiredMethods = ['get', 'set', 'del', 'expire'];
+    for (const method of requiredMethods) {
+        if (typeof client[method] !== 'function') {
+            throw new Error(`Redis client must implement ${method} method`);
+        }
+    }
+    
+    // 使用类型守卫检查客户端类型
+    const normalizedClient = isNormalizedRedisClient(client)
+        ? client
+        : createNormalizedRedisClient(client);
 
     const config = {
         prefix: 'session',
@@ -393,4 +458,3 @@ export function createRedisSessionStore<UserData = any>(
 
     return store;
 }
-

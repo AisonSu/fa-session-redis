@@ -8,7 +8,7 @@ importers:
 
   .:
     dependencies:
-      farrow-auth:
+      farrow-auth-session:
         specifier: ^0.0.1
         version: 0.0.1
       ulid:
@@ -778,8 +778,8 @@ packages:
     resolution: {integrity: sha512-hMQ4CX1p1izmuLYyZqLMO/qGNw10wSv9QDCPfzXfyFrOaCSSoRfqE1Kf1s5an66J5JZC62NewG+mK49jOCtQew==}
     engines: {node: '>=4'}
 
-  farrow-auth@0.0.1:
-    resolution: {integrity: sha512-ZPqr0kwfW+ioTvtHEDxeaMmRnW7sa8lPrjyAdaYkzVSX5t0PutvQSK1YqbGxsSIWNcX3QRipAZcu27949zqvTg==}
+  farrow-auth-session@0.0.1:
+    resolution: {integrity: sha512-xO64WJaW9FKFJ4S+pymdUvL49nslTnzz7XJkFipbwMth0elJ2U8hiizBMrIeH5uHV4G1RfbkuvCASreQ1lgbaQ==}
 
   farrow-http@2.3.1:
     resolution: {integrity: sha512-O2jf06ElBCYNVdYltK1rLZekDcgbYxc9bUFmiVnyd1MxS5N8yX3jYJV8rxCp6DmDq+8J5zZBX+wZIJszXkYT2w==}
@@ -2277,7 +2277,7 @@ snapshots:
       iconv-lite: 0.4.24
       tmp: 0.0.33
 
-  farrow-auth@0.0.1:
+  farrow-auth-session@0.0.1:
     dependencies:
       farrow-http: 2.3.1
       farrow-pipeline: 2.3.0
